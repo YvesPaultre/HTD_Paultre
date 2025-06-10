@@ -80,6 +80,9 @@ class InsuranceTransformer:
         """
         # TODO: Your implementation here
         # Remove this pass statement and implement the method
+
+        # INSTR-SC: Insert a defensive programming check for empty birth_date here.
+
         try:
             dob = datetime.strptime(birth_date, "%Y-%m-%d")
             now = date.today()
@@ -89,7 +92,9 @@ class InsuranceTransformer:
             elif now.month == dob.month and now.day >= dob.day:
                 return now.year - dob.year
             else:
-                return max(now.year - dob.year - 1, 0) # catch case where less than 1 year
+                return max(
+                    now.year - dob.year - 1, 0
+                )  # catch case where less than 1 year
         except ValueError:
             return 0
 
@@ -119,9 +124,12 @@ class InsuranceTransformer:
         """
         # TODO: Your implementation here
         # Remove this pass statement and implement the method
-        if risk_score < 2.0 and age >= 25: return "Low"
-        elif risk_score >= 3.0 or age < 25: return "High"
-        else: return "Medium"
+        if risk_score < 2.0 and age >= 25:
+            return "Low"
+        elif risk_score >= 3.0 or age < 25:
+            return "High"
+        else:
+            return "Medium"
 
     def _standardize_phone(self, phone: str) -> str:
         """
@@ -151,14 +159,17 @@ class InsuranceTransformer:
         """
         # TODO: Your implementation here
         # Remove this pass statement and implement the method
-        phone = self.phone_pattern.sub("", phone) # Uses regex pattern to strip non-digit characters
-        if not phone: return "UNKNOWN"
+        phone = self.phone_pattern.sub(
+            "", phone
+        )  # Uses regex pattern to strip non-digit characters
+        if not phone:
+            return "UNKNOWN"
         elif len(phone) == 10:
             return "(" + phone[:3] + ") " + phone[3:6] + "-" + phone[6:]
         elif len(phone) == 11:
             return "(" + phone[1:4] + ") " + phone[4:7] + "-" + phone[7:]
-        else: return "INVALID" # no pattern match but not empty
-        
+        else:
+            return "INVALID"  # no pattern match but not empty
 
     def _determine_premium_tier(self, annual_premium: float) -> str:
         """
@@ -186,9 +197,12 @@ class InsuranceTransformer:
         """
         # TODO: Your implementation here
         # Remove this pass statement and implement the method
-        if annual_premium >= 2000: return "Premium"
-        elif annual_premium >= 1000: return "Standard"
-        else: return "Economy"
+        if annual_premium >= 2000:
+            return "Premium"
+        elif annual_premium >= 1000:
+            return "Standard"
+        else:
+            return "Economy"
 
     def _validate_claim_amount(
         self, claim_amount: float, coverage_amount: float
@@ -218,7 +232,9 @@ class InsuranceTransformer:
         """
         # TODO: Your implementation here
         # Remove this pass statement and implement the method
-        return claim_amount > 0 and claim_amount <= coverage_amount # Returns true if both conditions met, false otherwise
+        return (
+            claim_amount > 0 and claim_amount <= coverage_amount
+        )  # Returns true if both conditions met, false otherwise
 
     # =====================================================================
     # COMPLETED METHODS - DO NOT MODIFY BELOW THIS LINE
@@ -328,7 +344,7 @@ class InsuranceTransformer:
 
         self.logger.info(f"Transformed {len(transformed_policies)} policy records")
         return transformed_policies
-    
+
     def prepare_agent_dimension(
         self, claims: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
@@ -361,7 +377,7 @@ class InsuranceTransformer:
         agents = list(agents_dict.values())
         self.logger.info(f"Extracted {len(agents)} unique agents from claims")
         return agents
-    
+
     def prepare_date_dimension_keys(self, claims: List[Dict[str, Any]]) -> List[int]:
         """
         Extract and format date keys from claims data
@@ -453,7 +469,9 @@ class InsuranceTransformer:
     # HELPER METHODS - ALREADY IMPLEMENTED
     # =====================================================================
 
-    def _clean_customer_name(self, first_name: str, last_name: str) -> Tuple[str, str, str]:
+    def _clean_customer_name(
+        self, first_name: str, last_name: str
+    ) -> Tuple[str, str, str]:
         """
         Clean and standardize customer names
 
@@ -477,7 +495,6 @@ class InsuranceTransformer:
 
         return first_clean, last_clean, full_name
 
-
     def _fix_name_casing(self, name: str) -> str:
         """Fix common name casing issues"""
         if not name:
@@ -494,7 +511,6 @@ class InsuranceTransformer:
             name = "-".join([part.capitalize() for part in parts])
 
         return name
-
 
     def _assign_agent_region(self, agent_id: str) -> str:
         """
@@ -516,13 +532,11 @@ class InsuranceTransformer:
         else:
             return "Central"
 
-
     def _estimate_experience_years(self) -> int:
         """Estimate agent experience years (random for demo)"""
         import random
 
         return random.randint(1, 15)
-
 
     def _generate_date_key(self, date_value: Any) -> int:
         """
@@ -547,7 +561,6 @@ class InsuranceTransformer:
                 return 0
         except (ValueError, AttributeError):
             return 0
-
 
     def transform_all_for_insurance_schema(
         self, raw_data: Dict[str, List[Dict[str, Any]]]
@@ -637,6 +650,38 @@ if __name__ == "__main__":
             print(f"  - Age: {customer['age']}")
             print(f"  - Risk Tier: {customer['risk_tier']}")
             print(f"  - Phone: {customer['phone']}")
+
+        # INSTR Manual test: calculate age
+        age_test = transformer._calculate_customer_age("1990-01-01")
+        print(f"Age test: {age_test} (should be ~34)")
+
+        # INSTR Manual test: classify risk score
+        risk_low = transformer._classify_customer_risk(1.5, 30)  # Should be "Low"
+        risk_high = transformer._classify_customer_risk(3.2, 22)  # Should be "High"
+        risk_med = transformer._classify_customer_risk(2.5, 35)  # Should be "Medium"
+        print(f"Risk tests: {risk_low}, {risk_high}, {risk_med}")
+
+        # INSTR Manual test: standardize phone number
+        phone1 = transformer._standardize_phone(
+            "555-123-4567"
+        )  # Should be "(555) 123-4567"
+        phone2 = transformer._standardize_phone("")  # Should be "UNKNOWN"
+        phone3 = transformer._standardize_phone(
+            "5551234567"
+        )  # Should be "(555) 123-4567"
+        print(f"Phone tests: {phone1}, {phone2}, {phone3}")
+
+        # INSTR Manual test: determine premium category
+        tier1 = transformer._determine_premium_tier(2500)  # Should be "Premium"
+        tier2 = transformer._determine_premium_tier(1200)  # Should be "Standard"
+        tier3 = transformer._determine_premium_tier(800)  # Should be "Economy"
+        print(f"Premium tests: {tier1}, {tier2}, {tier3}")
+
+        # INSTR Manual test: validate claim amount
+        valid1 = transformer._validate_claim_amount(5000, 50000)  # Should be True
+        valid2 = transformer._validate_claim_amount(60000, 50000)  # Should be False
+        valid3 = transformer._validate_claim_amount(0, 50000)  # Should be False
+        print(f"Validation tests: {valid1}, {valid2}, {valid3}")
 
     except Exception as e:
         print(f"Transformation test failed: {e}")

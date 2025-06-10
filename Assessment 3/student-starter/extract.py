@@ -343,22 +343,27 @@ class InsuranceExtractor:
         """
         # TODO: Your implementation here
         # Remove this pass statement and implement the method
-        if isinstance(value, float): return value
-        elif isinstance(value, int): return float(value)
+        if isinstance(value, float):
+            return value
+        elif isinstance(value, int):
+            return float(value)
+
+        # INSTR-SC: The code above could be condensed to
+        # if isinstance(value, (float, int)): return float(value)
 
         try:
             if isinstance(value, str):
                 value = value.strip()
-            
-            if not value: # empty string
+
+            if not value:  # empty string
                 floatValue = 0.0
             else:
-                floatValue = float(value) # Will throw error if not convertible
+                floatValue = float(value)  # Will throw error if not convertible
         except TypeError:
             floatValue = 0.0
         except ValueError:
             floatValue = 0.0
-        
+
         return floatValue
 
     def _safe_int_conversion(self, value: Any) -> int:
@@ -387,10 +392,16 @@ class InsuranceExtractor:
         """
         # TODO: Your implementation here
         # Remove this pass statement and implement the method
-        if isinstance(value, int): return value
-        
-        value = self._safe_float_conversion(value) # If cannot be parsed to float, returns 0.0
-        return int(value) # Truncates automatically
+        if isinstance(value, int):
+            return value
+
+        value = self._safe_float_conversion(
+            value
+        )  # If cannot be parsed to float, returns 0.0
+        return int(value)  # Truncates automatically
+
+        # INSTR-SC: Wrap the code above in a try/except block to handle any unexpected errors
+        # Interesting approach to this method is to use the _safe_float_conversion method
 
     # =====================================================================
     # COMPLETED METHODS - DO NOT MODIFY BELOW THIS LINE
