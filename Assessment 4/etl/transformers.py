@@ -65,18 +65,18 @@ def transform_books(books_df: pd.DataFrame) -> pd.DataFrame:
     Hint: Normalize fields, handle series/recommendations, and ensure all required columns are present. See 'ETL Transformations with Pandas'.
     """
     # Normalize title (Proper Case)
-    books_df['title'] = books_df['title'].str.strip().str.title()
+    books_df['title'] = books_df['title'].str.strip().str.title() if 'title' in books_df.columns else pd.NA # Column must exist in frame
     # Normalize author (Proper Case)
-    books_df['author'] = books_df['author'].str.strip().str.title()
+    books_df['author'] = books_df['author'].str.strip().str.title() if 'author' in books_df.columns else pd.NA
     # Normalize genre (Proper Case)
-    books_df['genre'] = books_df['genre'].str.strip().str.title()
+    books_df['genre'] = books_df['genre'].str.strip().str.title() if 'genre' in books_df.columns else pd.NA
     # Normalize ISBN
     # Format rules: 10-digit pre-2007, 13-digit post
     # Strip hyphens, as these are inconsistent in formatting/separation
     # Re-insert hyphen before last digit (checksum digit is consistent)
-    books_df['isbn'] = books_df['isbn'].str.replace('-', '').apply(lambda x: x[:len(x)-1] + '-' + x[len(x)-1:])
+    books_df['isbn'] = books_df['isbn'].str.replace('-', '').apply(lambda x: x[:len(x)-1] + '-' + x[len(x)-1:]) if 'isbn' in books_df.columns else None
     # Normalize Series (Proper Case)
-    books_df['series'] = books_df['series'].str.strip().str.title() # Provided series function is incompatible with SQL schema.
+    books_df['series'] = books_df['series'].str.strip().str.title() if 'series' in books_df.columns else pd.NA # Provided series function is incompatible with SQL schema.
     books_df = transform_book_recommendations(books_df, None) # Unnecessary argument in function signature. Wonder where that might have come from?
 
     return books_df
@@ -86,14 +86,14 @@ def transform_authors(authors_df: pd.DataFrame):
     Hint: Handle collaborations, normalize genres, and ensure all required columns are present. See 'ETL Transformations with Pandas'.
     """
     # Normalize name (Proper Case)
-    authors_df['name'] = authors_df['name'].str.strip().str.title()
+    authors_df['name'] = authors_df['name'].str.strip().str.title() if 'name' in authors_df.columns else pd.NA # Column must exist in frame
     # Email should already be normalized by cleaning process
     # Phone should already be normalized by cleaning process
     # Normalize genres
-    authors_df['genres'] = authors_df['genres'].transform(lambda x: ', '.join(map(str, x)))
+    authors_df['genres'] = authors_df['genres'].transform(lambda x: ', '.join(map(str, x))) if 'genres' in authors_df.columns else pd.NA
     # Handle collaborations
     # Note that this is useless for loading into the warehouse, as the warehouse has no column for collaborations
-    authors_df['collaborations'] = authors_df['collaborations'].transform(lambda x: ', '.join(map(str, x)))
+    authors_df['collaborations'] = authors_df['collaborations'].transform(lambda x: ', '.join(map(str, x))) if 'collaborations' in authors_df.columns else pd.NA
 
     return authors_df
 
@@ -102,20 +102,27 @@ def transform_customers(customers_df: pd.DataFrame):
     Hint: Flatten reading history, genre preferences, and recommendations. See 'ETL Transformations with Pandas'.
     """
     # Normalize name
-    customers_df['name'] = customers_df['name'].str.strip().str.title()
+    customers_df['name'] = customers_df['name'].str.strip().str.title() if 'name' in customers_df.columns else pd.NA # Column must exist in frame
     # Email should already be normalized by cleaning process
     # Phone should already be normalized by cleaning process (and deleted in a lot of cases, apparently)
     # Normalize reading history
-    # Apply provided transform function FIRST
-    customers_df = transform_reading_history(customers_df)
-    customers_df['reading_history'] = customers_df['reading_history'].transform(lambda x: ', '.join(map(str, x)))
+    if 'reading_history' in customers_df.columns:
+        # Apply provided transform function FIRST
+        customers_df = transform_reading_history(customers_df)
+        customers_df['reading_history'] = customers_df['reading_history'].transform(lambda x: ', '.join(map(str, x))) 
+    else: 
+        customers_df['reading_history'] = pd.NA
     # Normalize genre preferences
-    # Apply provided transform function FIRST
-    customers_df = transform_genre_preferences(customers_df)
-    customers_df['genre_preferences'] = customers_df['genre_preferences'].transform(lambda x: ', '.join(map(str, x)))
+    
+    if 'genre_preferences' in customers_df.columns:
+        # Apply provided transform function FIRST
+        customers_df = transform_genre_preferences(customers_df)
+        customers_df['genre_preferences'] = customers_df['genre_preferences'].transform(lambda x: ', '.join(map(str, x)))
+    else:
+        customers_df['genre_preferences'] = pd.NA
     # Normalize recommendations
     
-    customers_df['recommendations'] = customers_df['recommendations'].transform(lambda x: ', '.join(map(str, x))) # Also clean the ISBNs while we're at it
+    customers_df['recommendations'] = customers_df['recommendations'].transform(lambda x: ', '.join(map(str, x))) if 'recommendations' in customers_df.columns else pd.NA
     
     return customers_df
 
@@ -141,6 +148,7 @@ def transform_orders(orders_df: pd.DataFrame, book_author_lookup: pd.DataFrame):
         .merge(authors_df, 'left', on='name') # Contains author key
         .merge(customer_df, 'left', on='customer_id') # Contains customer key
         .merge(dates_df, 'left', on='date') # Contains date key
+        .drop_duplicates() # Remove duplicate entries caused by join ambiguity
     )
 
     return orders_df[['book_key', 'author_key', 'customer_key', 'date_key', 'quantity', 'price']]

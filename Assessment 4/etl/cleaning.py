@@ -13,7 +13,7 @@ import numpy as np
 import re
 from datetime import datetime
 
-logger = logging.getLogger('__name__')
+logger = logging.getLogger(__name__)
 
 # --- Clean Dates ---
 def clean_dates(df: pd.DataFrame, field: str) -> pd.DataFrame:
@@ -21,8 +21,8 @@ def clean_dates(df: pd.DataFrame, field: str) -> pd.DataFrame:
     Hint: Use pandas.to_datetime with error handling. See 'Data Quality & Cleaning with Pandas'.
     """
     try:
-        # 
-        df[field] = pd.to_datetime(df[field], format="%Y-%m-%d", errors='coerce').dt.date
+        # Not sure why the test calls for converting to datetime and then BACK to string, but go off I guess.
+        df[field] = pd.to_datetime(df[field], format="%Y-%m-%d", errors='coerce').dt.strftime('%Y-%m-%d') 
     except ValueError:
         logger.warning(f"Unable to parse all values in column \"{field}\" to datetime.")
     except TypeError:
@@ -53,9 +53,10 @@ def clean_phone_numbers(df: pd.DataFrame, field: str) -> pd.DataFrame:
     """
     phone_pattern = re.compile(r"[^\d]")
     try:
-        df[field] = df[field].str.strip().str.replace(phone_pattern, "", regex=True).apply( # Strip whitespace, then remove all non-numeric characters, chain into apply
-            func=lambda x: x if x and len(x) == 10 else None # Format: (xxx) xxx-xxxx if 10-digit number, else invalid
-        ) # Removed additional formatting as this fails tests. Format segment: f"({x[:3]}) {x[3:6]}-{x[6:]}" (replaces x in lambda)
+        if field in df.columns:
+            df[field] = df[field].str.strip().str.replace(phone_pattern, "", regex=True).apply( # Strip whitespace, then remove all non-numeric characters, chain into apply
+                func=lambda x: x if x and len(x) == 10 else None # Format: (xxx) xxx-xxxx if 10-digit number, else invalid
+            ) # Removed additional formatting as this fails tests. Format segment: f"({x[:3]}) {x[3:6]}-{x[6:]}" (replaces x in lambda)
     except TypeError as e:
         logger.error(f"Unable to parse all values in column {field}: {e}")
 
@@ -66,15 +67,15 @@ def clean_numerics(df: pd.DataFrame, field: str) -> pd.DataFrame:
     """Convert to numeric, set invalid to NaN.
     Hint: Use pandas.to_numeric with error handling. See 'Data Quality & Cleaning with Pandas'.
     """
-    for index, row in df.iterrows():
-        try:
-            row[field] = pd.to_numeric(row[field])
-        except ValueError as e:
-            logger.warning(f"Unable to convert {row[field]} to numeric, setting to NaN")
-            row[field] = np.NaN
-        except TypeError as e:
-            logger.warning(f"Unable to convert {row[field]} to numeric, setting to NaN")
-            row[field] = np.NaN
+
+    try:
+        df[field] = pd.to_numeric(df[field], errors='coerce')
+    except ValueError:
+        logger.warning(f"Unable to convert column \"{field}\" to numeric, setting all values to NaN")
+        df[field] = np.nan
+    except TypeError:
+        logger.warning(f"Unable to convert column \"{field}\" to numeric, setting all values to NaN")
+        df[field] = np.nan
 
     return df
 
@@ -84,7 +85,7 @@ def clean_text(df: pd.DataFrame, field: str) -> pd.DataFrame:
     Hint: Use pandas string methods. See 'Pandas Fundamentals for ETL' and 'Data Quality & Cleaning with Pandas'.
     """
     try:
-        df[field] = df[field].str.strip().str.replace(r"[\w]", "").str.capitalize()
+        df[field] = df[field].str.strip().str.replace(r"[^\w\s.,!]", "").str.capitalize() if field in df.columns else pd.NA # Using NA flags for dropna(), using None doesn't necessarily guarantee it'll be dropped
     except TypeError as e:
         logger.error(f"Unable to convert column \"{field}\" to standard format: {e}")
 

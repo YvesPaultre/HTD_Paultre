@@ -12,7 +12,7 @@ import logging
 from typing import List, Dict
 import re
 
-logger = logging.getLogger('__name__')
+logger = logging.getLogger(__name__)
 
 def validate_schema(df: pd.DataFrame, required_fields: List[str]):
     """Validate DataFrame schema against required fields.
@@ -32,10 +32,12 @@ def check_duplicates(df: pd.DataFrame, field: str):
     """Check for duplicate values in a field and return a summary or list.
     Hint: Use pandas.duplicated and value_counts. See 'Data Quality & Cleaning with Pandas'.
     """
-    duplicates: Dict[str, int] = {}
-    for value in df[df.duplicated(subset=field)][field]: # For each non-unique value in the field
-        duplicates[value] = df[field].value_counts(value) # Append value, count(value) to dict of duplicates
-    return duplicates
+    ftypes = (df.map(type) == list).all() # Check for all fields that are lists
+    if field in df.columns and ftypes.get(field): # Skip if the field is a list
+        duplicates = df[df[field].duplicated()].value_counts().to_dict()
+        return duplicates
+    else:
+        return None
 
 def quality_report(df: pd.DataFrame):
     """Generate a data quality report for a DataFrame (missing, invalid, duplicates, etc.).
@@ -45,6 +47,7 @@ def quality_report(df: pd.DataFrame):
     missing_columns, extra_columns = validate_schema(df, df.columns) # Given no metrics to determine which columns are "missing" or "extra", this is the best I can do. Will always return two empty lists.
     all_duplicates: Dict[str, Dict[str, int]] = {} # Nested Dict: outer str key holds field name, inner str key holds duplicate value, inner value holds duplicate count 
     for field in df.columns: # For each field in df
+        if field == 'recommendations': continue # Skip this, this is nothing but 1s forever
         field_duplicates = check_duplicates(df, field) # Get duplicate result set for field
         if field_duplicates: # Use this check to prevent adding empty result sets to aggregate set
             all_duplicates[field] = field_duplicates

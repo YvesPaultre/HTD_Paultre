@@ -33,3 +33,17 @@ QUALITY_THRESHOLD = 90  # Minimum data quality score (0-100)
 LOG_LEVEL = 'INFO'
 
 # Add more configuration options as needed 
+BOOK_RULES = {
+    'title': {'required': True},
+    'author': {'required': True},
+    'genre': {'required': True},
+    'isbn': {'required': True}
+}
+AUTHOR_RULES = {
+    'name': {'required': True},
+    'email': {'required': True}
+}
+CUSTOMER_RULES = {
+    'name': {'required': True},
+    'email': {'required': True}
+}

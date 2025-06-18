@@ -99,7 +99,7 @@ def main():
     
     try:
         # Assign customer ids
-        new_id_start = sql_customers['customer_id'].max() + 1
+        new_id_start = sql_customers['customer_id'].max() + 1 if 'customer_id' in sql_customers.columns else 1
         mongo_customers.insert(0, 'customer_id', range(new_id_start, new_id_start + len(mongo_customers)))
     except Exception as e:
         logger.error(f"Encountered an error during cleaning: {e}")
@@ -123,13 +123,13 @@ def main():
         # Construct date frame from dates in data
         dates = [] # Empty list
         for date in pd.date_range('1970-01-01', '2025-05-31'):
-            dates.append([date.to_pydatetime, date.year, date.month, date.day])
-        date_df = pd.DataFrame(dates, columns=['date', 'year', 'month', 'day'])
+            dates.append([date.to_pydatetime().strftime('%Y-%m-%d'), int(date.to_pydatetime().strftime('%Y%m%d')), date.year, date.month, date.day])
+        date_df = pd.DataFrame(dates, columns=['date', 'date_key', 'year', 'month', 'day'])
     except Exception as e:
         logger.error(f"Encountered an error during transforming: {e}")
         raise Exception("transform error")
 
-    # Duplicate removal must come AFTER transform phas
+    # Duplicate removal must come AFTER transform phase
     try:
         book_catalog = cleaning.remove_duplicates(book_catalog)
         author_profiles = cleaning.remove_duplicates(author_profiles)
@@ -137,6 +137,16 @@ def main():
     except Exception as e:
         logger.error(f"Encountered an error during cleaning: {e}")
         raise Exception("clean error")
+    
+    # Validation
+    try:
+        book_validity = data_quality.validate_field_level(book_catalog, config.BOOK_RULES)
+        author_validity = data_quality.validate_field_level(author_profiles, config.AUTHOR_RULES)
+        sql_customer_validity = data_quality.validate_field_level(sql_customers, config.CUSTOMER_RULES)
+        mongo_customer_validity = data_quality.validate_field_level(mongo_customers, config.CUSTOMER_RULES)
+    except Exception as e:
+        logger.error(f"Encountered an error during validation: {e}")
+        raise Exception("validate error")
 
     # 4. Load data into SQL Server (see loaders.py)
     try:
@@ -149,12 +159,13 @@ def main():
         dates_inserted = loaders.load_dimension_table(date_df, 'dim_date', DW_CONNECTION_STRING)
     except Exception as e:
         logger.error(f"Encountered an error during loading phase 1: {e}")
-        raise Exception("load error")
+        raise Exception("sql load error")
 
     # 3.5: Must transform orders AFTER loading dimensions, or else there are no keys to retrieve.
     # Generate book-author lookup frame by merging book_catalog with author_profiles and limiting to isbn and name columns
     try:
-        book_author_lookup = book_catalog.merge(author_profiles, how='inner', left_on='author', right_on='name')[['isbn', 'name']]
+        book_catalog_to_merge = book_catalog.rename(columns={'author': 'name'})
+        book_author_lookup = book_catalog_to_merge.merge(author_profiles, how='left', on='name')[['name', 'isbn']]
         orders = transformers.transform_orders(orders, book_author_lookup)
     except Exception as e:
         logger.error(f"Encountered an error during transforming phase 2: {e}")
@@ -165,7 +176,7 @@ def main():
         orders_inserted = loaders.load_fact_table(orders, 'fact_book_sales', DW_CONNECTION_STRING)
     except Exception as e:
         logger.error(f"Encountered an error during loading phase 2: {e}")
-        raise Exception("load error")
+        raise Exception("sql load error")
     
     # 5. Output health/trend report (see README and lessons on monitoring)    
     logger.info("FINAL DATA METRICS: ")
